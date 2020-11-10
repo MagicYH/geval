@@ -119,9 +119,10 @@ func (ruleNode *RuleNode) evalAssignStmt(node *ast.AssignStmt) error {
 			nameFunc, _ := ruleNode.eval(n.Fun)
 			return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
 		}
+
 		for i, setNode := range node.Lhs {
 			// get the value data, and convert to reflect.Value
-			err := ruleNode.setData(setNode, rValue.Index(i).Interface().(reflect.Value), node.Tok)
+			err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
 			if nil != err {
 				return err
 			}
@@ -279,10 +280,7 @@ func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret reflect.Value, e
 		args = append(args, param)
 	}
 
-	retList := vFunc.Call(args)
-	// return retList[0], nil
-
-	return reflect.ValueOf(retList), nil
+	return reflect.ValueOf(vFunc.Call(args)), nil
 }
 
 func (ruleNode *RuleNode) evalIdent(node *ast.Ident) (ret reflect.Value, err error) {
@@ -628,7 +626,7 @@ func (ruleNode *RuleNode) identSet(node *ast.Ident, value reflect.Value, t token
 	case "nil":
 		err = fmt.Errorf("Can not set to nil")
 	default:
-		err = ruleNode.dataCtx.Set(node.Name, convToRealType(value))
+		err = ruleNode.dataCtx.Set(node.Name, value)
 		// ret, err := ruleNode.dataCtx.Get(node.Name)
 		// switch t {
 		// case token.DEFINE:
@@ -681,43 +679,14 @@ func setDataByIndex(vData reflect.Value, vIndex reflect.Value, vValue reflect.Va
 		vData = vData.Elem()
 		kData = vData.Kind()
 	}
-	tData := vData.Type()
-
-	if reflect.Interface == kData {
-		realType := getInterfaceRealType(vData)
-		kData = realType.Kind()
-		tData = realType
-	}
 
 	switch kData {
 	case reflect.Map:
-		tDataK := tData.Key()
-		tDataV := tData.Elem()
-		vIndex, err = typeConvert(vIndex, tDataK)
-		if nil != err {
-			return
-		}
-		vValue, err = typeConvert(vValue, tDataV)
-		if nil != err {
-			return
-		}
-		vData.SetMapIndex(vIndex, vValue)
+		_, err = setMapValue(vData, vIndex, vValue)
 
 	case reflect.Slice:
-		tDataV := tData.Elem()
-		if !IsInt(vIndex.Kind()) {
-			return fmt.Errorf("Set by index expect int type not %v", vIndex.Kind())
-		}
-		i := int(vIndex.Int())
-		if i < 0 || i >= vData.Len() {
-			return fmt.Errorf("Slice index out of range: %d", i)
-		}
-		vElem := vData.Index(i)
-		vValue, err = typeConvert(vValue, tDataV)
-		if nil != err {
-			return
-		}
-		vElem.Set(vValue)
+		_, err = setSliceValue(vData, vIndex, vValue)
+
 	default:
 		err = fmt.Errorf("Unsupport set by index type: %v", kData)
 	}
@@ -746,6 +715,14 @@ func setDataBySel(vData reflect.Value, field string, vValue reflect.Value) (err 
 	}
 	elem.Set(vValue)
 	return
+}
+
+func getInterfaceRealValue(vValue reflect.Value) reflect.Value {
+	if reflect.Interface != vValue.Kind() {
+		return vValue
+	}
+
+	return reflect.ValueOf(convToRealType(vValue))
 }
 
 func getInterfaceRealType(vValue reflect.Value) reflect.Type {

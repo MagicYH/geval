@@ -78,28 +78,24 @@ func (ctx *DataContext) Get(name string) (value interface{}, err error) {
 }
 
 // Set set data, Now just support map[string]interface{} type
-func (ctx *DataContext) Set(name string, value interface{}) error {
-	fields := strings.Split(name, ".")
-	data, ok := ctx.data[fields[0]]
+func (ctx *DataContext) Set(name string, value reflect.Value) (err error) {
+	data, ok := ctx.data[name]
 	if !ok {
-		_, err := setMapValue(reflect.ValueOf(ctx.data), fields[0], value)
-		return err
+		_, err = setMapValue(reflect.ValueOf(ctx.data), reflect.ValueOf(name), value)
+		return
 	}
 
-	if len(fields) > 1 {
-		return setAttribute(data, fields[1:], value)
-	}
 	elem := reflect.ValueOf(data)
 	// if elem.Kind() is Ptr, it will be en bind variable, otherwise it will be a temporary variable
 	if elem.Kind() == reflect.Ptr {
 		elem = elem.Elem()
-		updateElem(elem, reflect.ValueOf(value))
+		err = updateElem(elem, value)
 	} else {
 		// update temporary variable
 		elem = reflect.ValueOf(ctx.data)
-		setMapValue(elem, fields[0], value)
+		_, err = setMapValue(elem, reflect.ValueOf(name), value)
 	}
-	return nil
+	return
 }
 
 func getAttribute(obj interface{}, fieldNames []string) (interface{}, error) {
@@ -156,46 +152,6 @@ func getAttribute(obj interface{}, fieldNames []string) (interface{}, error) {
 	return ret, nil
 }
 
-func setAttribute(obj interface{}, fieldNames []string, value interface{}) error {
-	elem := reflect.ValueOf(obj)
-	if reflect.Ptr != elem.Kind() {
-		return errors.New("Target variable is not editable")
-	}
-
-	var err error
-	fieldLen := len(fieldNames)
-	elem = elem.Elem()
-	for i, fieldName := range fieldNames {
-		var v interface{}
-		if fieldLen-1 == i {
-			v = value
-		}
-
-		switch elem.Kind() {
-		case reflect.Map:
-			elem, err = setMapValue(elem, fieldName, v)
-		case reflect.Slice:
-			elem, err = setSliceValue(elem, fieldName, v)
-		case reflect.Interface:
-			switch x := elem.Interface().(type) {
-			case map[string]interface{}, map[int]interface{}:
-				elem, err = setMapValue(reflect.ValueOf(x), fieldName, v)
-			case []interface{}, []string, []int, []float32, []float64, []bool:
-				elem, err = setSliceValue(reflect.ValueOf(x), fieldName, v)
-			default:
-				err = errors.New("Interface change type not support")
-			}
-		default:
-			err = errors.New("Data only support map and slice type")
-		}
-		if nil != err {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func convToRealType(v reflect.Value) interface{} {
 	switch x := v.Interface().(type) {
 	default:
@@ -242,58 +198,68 @@ func init() {
 	typeMapStrInterface = reflect.MapOf(reflect.TypeOf(""), typeInterface)
 }
 
-func setMapValue(elem reflect.Value, fieldName string, value interface{}) (ret reflect.Value, err error) {
-	tmpElem := elem.MapIndex(reflect.ValueOf(fieldName))
-	if tmpElem.IsValid() {
-		if nil == value {
-			ret = tmpElem
-			return
-		}
-
-		err = updateMapElem(elem, tmpElem.Type(), reflect.ValueOf(fieldName), reflect.ValueOf(value))
-		return
-	}
-
-	if nil == value {
-		// Create map[string]interface{}
-		tmpElem = reflect.MakeMap(typeMapStrInterface)
-		elem.SetMapIndex(reflect.ValueOf(fieldName), tmpElem)
-		ret = tmpElem
-	} else {
-		err = updateMapElem(elem, elem.Type().Elem(), reflect.ValueOf(fieldName), reflect.ValueOf(value))
-		ret = elem
-	}
-
-	return
-}
-
-func setSliceValue(elem reflect.Value, fieldName string, value interface{}) (ret reflect.Value, err error) {
-	var index int
-	index, err = strconv.Atoi(fieldName)
+func setMapValue(elem reflect.Value, fieldName reflect.Value, value reflect.Value) (ret reflect.Value, err error) {
+	tElem := elem.Type()
+	tKey := tElem.Key()
+	tValue := tElem.Elem()
+	vTarget, err := typeConvert(value, tValue)
 	if nil != err {
-		return
+		return nilValue, err
 	}
 
-	// Out of range check
-	if index >= elem.Len() {
-		err = errors.New("Index out of range")
-		return
+	vKey, err := typeConvert(fieldName, tKey)
+	if nil != err {
+		return nilValue, err
 	}
+	elem.SetMapIndex(vKey, vTarget)
 
-	tmpElem := elem.Index(index)
-	if tmpElem.IsValid() {
-		if nil == value {
-			ret = tmpElem
-			return
-		}
-
-		updateElem(tmpElem, reflect.ValueOf(value))
-		return
-	}
-
-	err = errors.New("Do not increase slice")
 	return
 }
+
+func setSliceValue(elem reflect.Value, vIndex reflect.Value, vValue reflect.Value) (ret reflect.Value, err error) {
+	if !IsInt(vIndex.Kind()) {
+		return nilValue, fmt.Errorf("Set by index expect int type not %v", vIndex.Kind())
+	}
+	i := int(vIndex.Int())
+	if i < 0 || i >= elem.Len() {
+		return nilValue, fmt.Errorf("Slice index out of range: %d", i)
+	}
+	vElem := elem.Index(i)
+	vValue, err = typeConvert(vValue, elem.Type().Elem())
+	if nil != err {
+		return nilValue, err
+	}
+	vElem.Set(vValue)
+	return
+}
+
+// func setSliceValue(elem reflect.Value, fieldName string, value interface{}) (ret reflect.Value, err error) {
+// 	var index int
+// 	index, err = strconv.Atoi(fieldName)
+// 	if nil != err {
+// 		return
+// 	}
+
+// 	// Out of range check
+// 	if index >= elem.Len() {
+// 		err = errors.New("Index out of range")
+// 		return
+// 	}
+
+// 	tmpElem := elem.Index(index)
+// 	if tmpElem.IsValid() {
+// 		if nil == value {
+// 			ret = tmpElem
+// 			return
+// 		}
+
+// 		updateElem(tmpElem, reflect.ValueOf(value))
+// 		return
+// 	}
+
+// 	err = errors.New("Do not increase slice")
+// 	return
+// }
 
 func canBeInt(value string) bool {
 	_, err := strconv.Atoi(value)
@@ -307,12 +273,16 @@ func updateElem(elem reflect.Value, value reflect.Value) error {
 	if reflect.Interface == elem.Kind() {
 		elem.Set(value)
 	} else {
-		typeElem := elem.Type()
-		typeValue := value.Type()
-		if !typeValue.ConvertibleTo(typeElem) {
-			return fmt.Errorf("Assign type not math and can not be convert, targetType: %s, sourceType: %s", typeElem, typeValue)
+		vValue, err := typeConvert(value, elem.Type())
+		if nil != err {
+			return err
 		}
-		elem.Set(value.Convert(typeElem))
+		// typeElem := elem.Type()
+		// typeValue := value.Type()
+		// if !typeValue.ConvertibleTo(typeElem) {
+		// 	return fmt.Errorf("Assign type not math and can not be convert, targetType: %s, sourceType: %s", typeElem, typeValue)
+		// }
+		elem.Set(vValue)
 	}
 	return nil
 }
