@@ -10,6 +10,7 @@ import (
 	"strconv"
 )
 
+// RuleNode : base element of rule node
 type RuleNode struct {
 	fset    *token.FileSet
 	astFile *ast.File
@@ -22,6 +23,7 @@ const TOKEN_CONTINUE = "TOKEN CONTINUE"
 
 var nilValue reflect.Value
 
+// NewRuleNode : Create a new rule node
 func NewRuleNode(content string, funcCtx *FunContext) (*RuleNode, error) {
 	src := "package main\nfunc main() {\n" + content + "\n}"
 
@@ -33,6 +35,7 @@ func NewRuleNode(content string, funcCtx *FunContext) (*RuleNode, error) {
 	return ruleNode, err
 }
 
+// Eval : Run a node
 func (ruleNode *RuleNode) Eval(dataCtx *DataContext) (err error) {
 	ruleNode.dataCtx = dataCtx
 	ast.Inspect(ruleNode.astFile, func(node ast.Node) bool {
@@ -153,11 +156,11 @@ func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret reflect.Valu
 
 	switch node.Op.String() {
 	case "+":
-		return Add(left, right)
+		return add(left, right)
 	case "==":
-		return Equ(left, right)
+		return equ(left, right)
 	case "!=":
-		return Neq(left, right)
+		return neq(left, right)
 	case "-", "*", "/", "<", ">", "<=", ">=":
 		return doNumMath(left, right, node.Op.String())
 	}
@@ -793,6 +796,7 @@ func getTypeWithName(name string) (t reflect.Type, err error) {
 	return
 }
 
+// DumpAstTree : Dump node's ast tree
 func (ruleNode *RuleNode) DumpAstTree() {
 	fset := token.NewFileSet()
 	ast.Print(fset, ruleNode.astFile)

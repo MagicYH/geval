@@ -14,18 +14,18 @@ var typeFloat32 reflect.Type
 var typeInt reflect.Type
 var typeString reflect.Type
 
-func Add(vA, vB reflect.Value) (reflect.Value, error) {
+func add(vA, vB reflect.Value) (reflect.Value, error) {
 	if reflect.String == vA.Kind() || reflect.String == vB.Kind() {
 		return addString(vA, vB)
 	}
 	return doNumMath(vA, vB, token.ADD.String())
 }
 
-func Equ(vA, vB reflect.Value) (reflect.Value, error) {
+func equ(vA, vB reflect.Value) (reflect.Value, error) {
 	return reflect.ValueOf(reflect.DeepEqual(vA.Interface(), vB.Interface())), nil
 }
 
-func Neq(vA, vB reflect.Value) (reflect.Value, error) {
+func neq(vA, vB reflect.Value) (reflect.Value, error) {
 	return reflect.ValueOf(!reflect.DeepEqual(vA.Interface(), vB.Interface())), nil
 }
 
@@ -139,11 +139,13 @@ func initIntDict() {
 	intDict[reflect.Uint64] = true
 }
 
+// IsNumber : Check if kind is number
 func IsNumber(kind reflect.Kind) bool {
 	_, ok := numDict[kind]
 	return ok
 }
 
+// IsInt : Check kind is int
 func IsInt(kind reflect.Kind) bool {
 	_, ok := intDict[kind]
 	return ok

@@ -11,14 +11,17 @@ import (
 var typeInterface reflect.Type
 var typeMapStrInterface reflect.Type
 
+// DataContext : DataContext is used to store temp data or bind data
 type DataContext struct {
 	data map[string]interface{}
 }
 
+// FunContext : FuncContext is used to store function that should inject into eval engine
 type FunContext struct {
 	data map[string]interface{}
 }
 
+// NewFunCtx : Get a new instance of FunContext, buildin function `make` and `len` is injected
 func NewFunCtx() *FunContext {
 	ctx := &FunContext{data: make(map[string]interface{})}
 
@@ -29,6 +32,7 @@ func NewFunCtx() *FunContext {
 	return ctx
 }
 
+// Bind : Inject self define function into eval engine
 func (ctx *FunContext) Bind(name string, fun interface{}) error {
 	if _, ok := ctx.data[name]; ok {
 		return fmt.Errorf("Func '%s' have bind before", name)
@@ -37,20 +41,26 @@ func (ctx *FunContext) Bind(name string, fun interface{}) error {
 	return nil
 }
 
+// NewDataCtx : Get a new instance of DataContext
 func NewDataCtx() *DataContext {
 	ctx := &DataContext{data: make(map[string]interface{})}
 	return ctx
 }
 
+// Bind : Inject variable into datacontext, data must be ptr that it's value can be update in eval engine
 func (ctx *DataContext) Bind(name string, data interface{}) error {
 	v := reflect.ValueOf(data)
 	if v.Kind() != reflect.Ptr {
 		return errors.New("Must set ptr")
 	}
+	if _, ok := ctx.data[name]; ok {
+		return fmt.Errorf("Variable '%s' have bind before", name)
+	}
 	ctx.data[name] = data
 	return nil
 }
 
+// Get : Get one data from datacontext
 func (ctx *DataContext) Get(name string) (value interface{}, err error) {
 	//in dataContext
 	fields := strings.Split(name, ".")
@@ -60,7 +70,7 @@ func (ctx *DataContext) Get(name string) (value interface{}, err error) {
 	}
 
 	if len(fields) > 1 {
-		value, _ = GetAttribute(data, fields[1:])
+		value, _ = getAttribute(data, fields[1:])
 	} else {
 		value = data
 	}
@@ -77,7 +87,7 @@ func (ctx *DataContext) Set(name string, value interface{}) error {
 	}
 
 	if len(fields) > 1 {
-		return SetAttribute(data, fields[1:], value)
+		return setAttribute(data, fields[1:], value)
 	}
 	elem := reflect.ValueOf(data)
 	// if elem.Kind() is Ptr, it will be en bind variable, otherwise it will be a temporary variable
@@ -92,7 +102,7 @@ func (ctx *DataContext) Set(name string, value interface{}) error {
 	return nil
 }
 
-func GetAttribute(obj interface{}, fieldNames []string) (interface{}, error) {
+func getAttribute(obj interface{}, fieldNames []string) (interface{}, error) {
 	value := reflect.ValueOf(obj)
 	var attrVal reflect.Value
 	fieldName := fieldNames[0]
@@ -141,13 +151,12 @@ func GetAttribute(obj interface{}, fieldNames []string) (interface{}, error) {
 
 	ret := convToRealType(attrVal)
 	if len(fieldNames) > 1 {
-		return GetAttribute(ret, fieldNames[1:])
+		return getAttribute(ret, fieldNames[1:])
 	}
 	return ret, nil
 }
 
-// SetAttribute Set value to fieldNames
-func SetAttribute(obj interface{}, fieldNames []string, value interface{}) error {
+func setAttribute(obj interface{}, fieldNames []string, value interface{}) error {
 	elem := reflect.ValueOf(obj)
 	if reflect.Ptr != elem.Kind() {
 		return errors.New("Target variable is not editable")
@@ -194,7 +203,7 @@ func convToRealType(v reflect.Value) interface{} {
 	}
 }
 
-func ValueToInterface(v reflect.Value) interface{} {
+func valueToInterface(v reflect.Value) interface{} {
 	switch v.Type().Kind() {
 	case reflect.String:
 		return v.String()
