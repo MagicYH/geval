@@ -41,10 +41,15 @@ func main(){
 look [test](https://github.com/MagicYH/geval/test) for more example
 
 ## Features
+
 [x] **Value assignment**: Include map assignment and struct assignment
+
 [x] **Function call**: Include struct function. Self define function inject is support
+
 [x] **If block**: >, >=, <, <=, ==, !=, +, -, *, /
+
 [x] **For block**: `break`, `continue` is support
+
 [x] **Create slice, map**: Can create slice and map with base type (int, string, float). For example: `a := make(map[string]int)`, `a := []int{1, 2, 3}`
 
 ### Function inject
