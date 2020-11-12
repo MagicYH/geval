@@ -62,8 +62,18 @@ func doNumMath(vA, vB reflect.Value, op string) (reflect.Value, error) {
 	}
 
 	var ret interface{}
-	afloat := vA.Convert(typeFloat64).Float()
-	bfloat := vB.Convert(typeFloat64).Float()
+	var afloat, bfloat float64
+	if reflect.Float64 != kA {
+		afloat = vA.Convert(typeFloat64).Float()
+	} else {
+		afloat = vA.Float()
+	}
+
+	if reflect.Float64 != kB {
+		bfloat = vB.Convert(typeFloat64).Float()
+	} else {
+		bfloat = vB.Float()
+	}
 
 	switch op {
 	case "+":

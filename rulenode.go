@@ -38,7 +38,7 @@ func NewRuleNode(content string, funcCtx *FunContext) (*RuleNode, error) {
 // Eval : Run a node
 func (ruleNode *RuleNode) Eval(dataCtx *DataContext) (err error) {
 	ruleNode.dataCtx = dataCtx
-	ast.Inspect(ruleNode.astFile, func(node ast.Node) bool {
+	ast.Inspect(ruleNode.astFile.Decls[0].(*ast.FuncDecl), func(node ast.Node) bool {
 		switch x := node.(type) {
 		case *ast.FuncDecl:
 			// first func declare is main func
@@ -237,9 +237,12 @@ func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret reflect.Value, e
 	tFunc := vFunc.Type()
 	numIn := tFunc.NumIn()
 
-	tLastIn := tFunc.In(numIn - 1)
-	if tFunc.IsVariadic() {
-		tLastIn = tLastIn.Elem()
+	var tLastIn reflect.Type
+	if numIn > 0 {
+		tLastIn = tFunc.In(numIn - 1)
+		if tFunc.IsVariadic() {
+			tLastIn = tLastIn.Elem()
+		}
 	}
 
 	nodeFunc, isSel := node.Fun.(*ast.SelectorExpr)
