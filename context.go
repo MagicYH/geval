@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 var typeInterface reflect.Type
@@ -62,17 +61,9 @@ func (ctx *DataContext) Bind(name string, data interface{}) error {
 
 // Get : Get one data from datacontext
 func (ctx *DataContext) Get(name string) (value interface{}, err error) {
-	//in dataContext
-	fields := strings.Split(name, ".")
-	data, ok := ctx.data[fields[0]]
+	value, ok := ctx.data[name]
 	if !ok {
-		return nil, errors.New("Fail to get variable")
-	}
-
-	if len(fields) > 1 {
-		value, _ = getAttribute(data, fields[1:])
-	} else {
-		value = data
+		err = fmt.Errorf("Variable %s not exists", name)
 	}
 	return
 }

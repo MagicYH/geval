@@ -8,6 +8,8 @@ import (
 	"go/token"
 	"reflect"
 	"strconv"
+
+	"github.com/modern-go/reflect2"
 )
 
 // RuleNode : base element of rule node
@@ -68,32 +70,32 @@ func (ruleNode *RuleNode) eval(node ast.Node) (reflect.Value, error) {
 			return nilValue, err
 		}
 		return nilValue, nil
-	case *ast.ExprStmt:
-		return ruleNode.evalExprStmt(n)
-	case *ast.BinaryExpr:
-		return ruleNode.evalBinaryExpr(n)
-	case *ast.ParenExpr:
-		return ruleNode.evalParenExpr(n)
-	case *ast.BasicLit:
-		return ruleNode.evalBasicLit(n)
-	case *ast.CallExpr:
-		return ruleNode.evalCallExpr(n)
-	case *ast.Ident:
-		return ruleNode.evalIdent(n)
-	case *ast.SelectorExpr:
-		return ruleNode.evalSelectorExpr(n)
-	case *ast.IfStmt:
-		return ruleNode.evalIfStmt(n)
-	case *ast.BlockStmt:
-		return ruleNode.evalBlockStmt(n)
-	case *ast.IndexExpr:
-		return ruleNode.evalIndexExpr(n)
-	case *ast.ForStmt:
-		return ruleNode.evalForStmt(n)
-	case *ast.IncDecStmt:
-		return ruleNode.evalIncDecStmt(n)
-	case *ast.BranchStmt:
-		return ruleNode.evalBranchStmt(n)
+		// case *ast.ExprStmt:
+		// 	return ruleNode.evalExprStmt(n)
+		// case *ast.BinaryExpr:
+		// 	return ruleNode.evalBinaryExpr(n)
+		// case *ast.ParenExpr:
+		// 	return ruleNode.evalParenExpr(n)
+		// case *ast.BasicLit:
+		// 	return ruleNode.evalBasicLit(n)
+		// case *ast.CallExpr:
+		// 	return ruleNode.evalCallExpr(n)
+		// case *ast.Ident:
+		// 	return ruleNode.evalIdent(n)
+		// case *ast.SelectorExpr:
+		// 	return ruleNode.evalSelectorExpr(n)
+		// case *ast.IfStmt:
+		// 	return ruleNode.evalIfStmt(n)
+		// case *ast.BlockStmt:
+		// 	return ruleNode.evalBlockStmt(n)
+		// case *ast.IndexExpr:
+		// 	return ruleNode.evalIndexExpr(n)
+		// case *ast.ForStmt:
+		// 	return ruleNode.evalForStmt(n)
+		// case *ast.IncDecStmt:
+		// 	return ruleNode.evalIncDecStmt(n)
+		// case *ast.BranchStmt:
+		// 	return ruleNode.evalBranchStmt(n)
 	}
 	return nilValue, fmt.Errorf("Node type not support: %s", reflect.TypeOf(node).String())
 }
@@ -109,26 +111,26 @@ func (ruleNode *RuleNode) evalAssignStmt(node *ast.AssignStmt) error {
 		return err
 	}
 
-	switch n := node.Rhs[0].(type) {
-	case *ast.CallExpr:
-		vFunc, err := ruleNode.getFunc(n)
-		if nil != err {
-			return err
-		}
-		if vFunc.Type().NumOut() != len(node.Lhs) {
-			nameFunc, _ := ruleNode.eval(n.Fun)
-			return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
-		}
+	// switch n := node.Rhs[0].(type) {
+	// case *ast.CallExpr:
+	// 	vFunc, err := ruleNode.getFunc(n)
+	// 	if nil != err {
+	// 		return err
+	// 	}
+	// 	if vFunc.Type().NumOut() != len(node.Lhs) {
+	// 		nameFunc, _ := ruleNode.eval(n.Fun)
+	// 		return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
+	// 	}
 
-		for i, setNode := range node.Lhs {
-			// get the value data, and convert to reflect.Value
-			err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
-			if nil != err {
-				return err
-			}
-		}
-		return nil
-	}
+	// 	for i, setNode := range node.Lhs {
+	// 		// get the value data, and convert to reflect.Value
+	// 		err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
+	// 		if nil != err {
+	// 			return err
+	// 		}
+	// 	}
+	// 	return nil
+	// }
 
 	return ruleNode.setData(node.Lhs[0], rValue, node.Tok)
 }
@@ -137,7 +139,7 @@ func (ruleNode *RuleNode) evalParenExpr(node *ast.ParenExpr) (ret reflect.Value,
 	return ruleNode.eval(node.X)
 }
 
-func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret reflect.Value, err error) {
+func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret interface{}, err error) {
 	var left, right reflect.Value
 	// left, err = ruleNode.eval(node.X)
 	left, err = ruleNode.getData(node.X)
@@ -145,7 +147,7 @@ func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret reflect.Valu
 		return
 	}
 	// If node.X is callExpr, than get the first result
-	left = getNodeFirstResult(node.X, left)
+	// left = getNodeFirstResult(node.X, left)
 
 	// right, err = ruleNode.eval(node.Y)
 	right, err = ruleNode.getData(node.Y)
@@ -153,7 +155,7 @@ func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret reflect.Valu
 		return
 	}
 	// If node.Y is callExpr, than get the first result
-	right = getNodeFirstResult(node.Y, right)
+	// right = getNodeFirstResult(node.Y, right)
 
 	switch node.Op.String() {
 	case "+":
@@ -168,26 +170,18 @@ func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret reflect.Valu
 	return nilValue, errors.New("Operate not define")
 }
 
-func (ruleNode *RuleNode) evalBasicLit(node *ast.BasicLit) (ret reflect.Value, err error) {
+func (ruleNode *RuleNode) evalBasicLit(node *ast.BasicLit) (ret interface{}, err error) {
 	switch node.Kind {
 	case token.INT:
-		num, err := strconv.Atoi(node.Value)
-		if nil != err {
-			return nilValue, err
-		}
-		return reflect.ValueOf(num), nil
+		return strconv.Atoi(node.Value)
 	case token.FLOAT:
-		num, err := strconv.ParseFloat(node.Value, 64)
-		if nil != err {
-			return nilValue, err
-		}
-		return reflect.ValueOf(num), nil
+		return strconv.ParseFloat(node.Value, 64)
 	case token.STRING:
 		str := node.Value
 		strLen := len(str)
-		return reflect.ValueOf(str[1 : strLen-1]), nil
+		return str[1 : strLen-1], nil
 	}
-	return nilValue, fmt.Errorf("Basic token not support: %d", node.Kind)
+	return nil, fmt.Errorf("Basic token not support: %d", node.Kind)
 }
 
 func (ruleNode *RuleNode) evalExpr() (ret reflect.Value, err error) {
@@ -474,7 +468,7 @@ func (ruleNode *RuleNode) evalMapType(node *ast.MapType) (param reflect.Value, e
 	return reflect.ValueOf(makeMapParam), nil
 }
 
-func (ruleNode *RuleNode) getData(node ast.Expr) (ret reflect.Value, err error) {
+func (ruleNode *RuleNode) getData(node ast.Expr) (ret interface{}, err error) {
 	switch n := node.(type) {
 	case *ast.Ident:
 		return ruleNode.identGet(n)
@@ -492,11 +486,7 @@ func (ruleNode *RuleNode) getData(node ast.Expr) (ret reflect.Value, err error) 
 		return getDataByIndex(x, index)
 
 	case *ast.SelectorExpr:
-		var x reflect.Value
-		x, err = ruleNode.getData(n.X)
-		if nil != err {
-			return
-		}
+		ret, err = ruleNode.getData(n.X)
 		return getDataBySel(x, n.Sel.Name)
 	case *ast.BasicLit:
 		return ruleNode.evalBasicLit(n)
@@ -504,92 +494,55 @@ func (ruleNode *RuleNode) getData(node ast.Expr) (ret reflect.Value, err error) 
 		return ruleNode.evalBinaryExpr(n)
 	case *ast.ParenExpr:
 		return ruleNode.getData(n.X)
-	case *ast.CallExpr:
-		return ruleNode.evalCallExpr(n)
-	case *ast.CompositeLit:
-		return ruleNode.evalCompositeLit(n)
-	case *ast.MapType:
-		return ruleNode.evalMapType(n)
+		// case *ast.CallExpr:
+		// 	return ruleNode.evalCallExpr(n)
+		// case *ast.CompositeLit:
+		// 	return ruleNode.evalCompositeLit(n)
+		// case *ast.MapType:
+		// 	return ruleNode.evalMapType(n)
 	}
 	err = fmt.Errorf("Unexpect get node type: %T, value: %v", node, node)
 	return
 }
 
-func (ruleNode *RuleNode) identGet(node *ast.Ident) (value reflect.Value, err error) {
+func (ruleNode *RuleNode) identGet(node *ast.Ident) (value interface{}, err error) {
 	switch node.Name {
 	case "true":
-		value = reflect.ValueOf(true)
+		value = true
 	case "false":
-		value = reflect.ValueOf(false)
+		value = false
 	case "nil":
-		value = reflect.ValueOf(nil)
+		value = nil
 	default:
-		var data interface{}
-		data, err = ruleNode.dataCtx.Get(node.Name)
-		value = reflect.ValueOf(data)
+		value, err = ruleNode.dataCtx.Get(node.Name)
 	}
 	return
 }
 
-func getDataByIndex(vData reflect.Value, vIndex reflect.Value) (ret reflect.Value, err error) {
-	kData := vData.Kind()
-	if reflect.Ptr == kData || reflect.Interface == kData {
-		vData = vData.Elem()
-		kData = vData.Kind()
-	}
-	indexKind := vIndex.Kind()
+func getDataByIndex(data interface{}, index interface{}) (ret interface{}, err error) {
+	tData := reflect2.TypeOf(data)
+	kData := tData.Type1().Kind()
+
 	switch kData {
 	case reflect.Map:
-		if indexKind != reflect.String && !IsInt(indexKind) {
-			err = fmt.Errorf("Unexpect index kind when get map data: %v", indexKind)
-			return
-		}
-		elem := vData.MapIndex(vIndex)
-		if !elem.IsValid() {
-			err = errors.New("Elem not found")
-			return
-		}
-		return elem, nil
+		tMap := tData.(reflect2.MapType)
+		return tMap.GetIndex(&data, &index), nil
 
 	case reflect.Slice:
-		if !IsInt(indexKind) {
-			err = fmt.Errorf("Unexpect index kind when get slice data: %v", indexKind)
-			return
-		}
-		elem := vData.Index(int(vIndex.Int()))
-		if !elem.IsValid() {
-			err = errors.New("Elem not found")
-		}
-		return elem, nil
+		tSlice := tData.(reflect2.SliceType)
+		return tSlice.GetIndex(&data, index.(int)), nil
 	}
 	err = fmt.Errorf("Unexpect data kind when get by index: %v", kData)
 	return
 }
 
-func getDataBySel(vData reflect.Value, field string) (ret reflect.Value, err error) {
-	kData := vData.Kind()
-	if reflect.Ptr == kData || reflect.Interface == kData {
-		vData = vData.Elem()
-		kData = vData.Kind()
-	}
-	if reflect.Struct != kData {
-		err = fmt.Errorf("Unexpect data kind when get by sel, type: %T, value: %v", vData.Type(), vData)
-	}
-
-	tData := vData.Type()
-	_, ok := tData.FieldByName(field)
-	if !ok {
-		err = fmt.Errorf("Field %s not found", field)
-		return
-	}
-	elem := vData.FieldByName(field)
-	// if elem.IsZero() {
-	// 	elem = reflect.New(elem.Type())
-	// }
-	return elem, nil
+func getDataBySel(data interface{}, field string) (ret interface{}, err error) {
+	tData := reflect2.TypeOf(data)
+	tStruct := tData.(reflect2.StructType)
+	return tStruct.FieldByName(field).Get(data), nil
 }
 
-func (ruleNode *RuleNode) setData(node ast.Expr, value reflect.Value, t token.Token) (err error) {
+func (ruleNode *RuleNode) setData(node ast.Expr, value interface{}git , t token.Token) (err error) {
 	var elem reflect.Value
 	switch n := node.(type) {
 	case *ast.Ident:

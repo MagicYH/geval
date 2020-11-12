@@ -14,19 +14,21 @@ var typeFloat32 reflect.Type
 var typeInt reflect.Type
 var typeString reflect.Type
 
-func add(vA, vB reflect.Value) (reflect.Value, error) {
-	if reflect.String == vA.Kind() || reflect.String == vB.Kind() {
-		return addString(vA, vB)
+func add(a, b interface{}) (interface{}, error) {
+	if reflect.String == reflect.TypeOf(a).Kind() && reflect.String == reflect.TypeOf(b).Kind() {
+		return fmt.Sprintf("%s%s", a, b), nil
+	} else if IsNumber(reflect.TypeOf(a).Kind()) && IsNumber(reflect.TypeOf(b).Kind()) {
+		return doNumMath(a, b, token.ADD.String())
 	}
-	return doNumMath(vA, vB, token.ADD.String())
+	return nil, fmt.Errorf("Math type not support with %T, %T", a, b)
 }
 
-func equ(vA, vB reflect.Value) (reflect.Value, error) {
-	return reflect.ValueOf(reflect.DeepEqual(vA.Interface(), vB.Interface())), nil
+func equ(a, b interface{}) (bool, error) {
+	return reflect.DeepEqual(a, b), nil
 }
 
-func neq(vA, vB reflect.Value) (reflect.Value, error) {
-	return reflect.ValueOf(!reflect.DeepEqual(vA.Interface(), vB.Interface())), nil
+func neq(a, b interface{}) (bool, error) {
+	return !reflect.DeepEqual(a, b), nil
 }
 
 func getValueAndKind(input interface{}) (reflect.Value, reflect.Kind) {
@@ -35,46 +37,22 @@ func getValueAndKind(input interface{}) (reflect.Value, reflect.Kind) {
 	return v, v.Kind()
 }
 
-func addString(vA, vB reflect.Value) (reflect.Value, error) {
-	kA := vA.Kind()
-	kB := vB.Kind()
-	if kA == reflect.String && kB != reflect.String {
-		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
-	} else if kA != reflect.String && kB == reflect.String {
-		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
-	}
-	return reflect.ValueOf(fmt.Sprintf("%s%s", vA.String(), vB.String())), nil
-}
+// func addString(vA, vB reflect.Value) (reflect.Value, error) {
+// 	kA := vA.Kind()
+// 	kB := vB.Kind()
+// 	if kA == reflect.String && kB != reflect.String {
+// 		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
+// 	} else if kA != reflect.String && kB == reflect.String {
+// 		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
+// 	}
+// 	return reflect.ValueOf(fmt.Sprintf("%s%s", vA.String(), vB.String())), nil
+// }
 
-func doNumMath(vA, vB reflect.Value, op string) (reflect.Value, error) {
-	kA := vA.Kind()
-	kB := vB.Kind()
-	if reflect.Interface == kA || reflect.Ptr == kA {
-		vA = vA.Elem()
-		kA = vA.Kind()
-	}
-	if reflect.Interface == kB || reflect.Ptr == kB {
-		vB = vB.Elem()
-		kB = vB.Kind()
-	}
-	if !IsNumber(kA) || !IsNumber(kB) {
-		return nilValue, fmt.Errorf("OP(%s) can't be used between %s and %s", op, kA, kB)
-	}
+func doNumMath(a, b interface{}, op string) (interface{}, error) {
+	afloat := a.(float64)
+	bfloat := b.(float64)
 
 	var ret interface{}
-	var afloat, bfloat float64
-	if reflect.Float64 != kA {
-		afloat = vA.Convert(typeFloat64).Float()
-	} else {
-		afloat = vA.Float()
-	}
-
-	if reflect.Float64 != kB {
-		bfloat = vB.Convert(typeFloat64).Float()
-	} else {
-		bfloat = vB.Float()
-	}
-
 	switch op {
 	case "+":
 		ret = afloat + bfloat
@@ -84,17 +62,13 @@ func doNumMath(vA, vB reflect.Value, op string) (reflect.Value, error) {
 		ret = afloat * bfloat
 	case "/":
 		if 0 == bfloat {
-			return nilValue, errors.New("Can not div with zero(0) value")
+			return nil, errors.New("Can not div with zero(0) value")
 		}
 		ret = afloat / bfloat
-	case "==":
-		ret = (afloat == bfloat)
 	case "<":
 		ret = (afloat < bfloat)
 	case ">":
 		ret = (afloat > bfloat)
-	case "!=":
-		ret = (afloat != bfloat)
 	case "<=":
 		ret = (afloat <= bfloat)
 	case ">=":
@@ -104,9 +78,9 @@ func doNumMath(vA, vB reflect.Value, op string) (reflect.Value, error) {
 	case "--":
 		ret = afloat - 1
 	default:
-		return nilValue, fmt.Errorf("Operate(%s) not support", op)
+		return nil, fmt.Errorf("Operate(%s) not support", op)
 	}
-	return reflect.ValueOf(ret), nil
+	return ret, nil
 }
 
 func init() {
