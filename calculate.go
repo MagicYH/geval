@@ -49,8 +49,14 @@ func getValueAndKind(input interface{}) (reflect.Value, reflect.Kind) {
 // }
 
 func doNumMath(a, b interface{}, op string) (interface{}, error) {
-	afloat := a.(float64)
-	bfloat := b.(float64)
+	afloat, err := interToFloat(a)
+	if nil != err {
+		return nil, err
+	}
+	bfloat, err := interToFloat(b)
+	if nil != err {
+		return nil, err
+	}
 
 	var ret interface{}
 	switch op {
@@ -81,6 +87,24 @@ func doNumMath(a, b interface{}, op string) (interface{}, error) {
 		return nil, fmt.Errorf("Operate(%s) not support", op)
 	}
 	return ret, nil
+}
+
+func interToFloat(v interface{}) (float64, error) {
+	switch v.(type) {
+	case int:
+		return float64(v.(int)), nil
+	case float32:
+		return float64(v.(float32)), nil
+	case float64:
+		return v.(float64), nil
+	case *int:
+		return float64(*v.(*int)), nil
+	case *float32:
+		return float64(*v.(*float32)), nil
+	case *float64:
+		return *v.(*float64), nil
+	}
+	return 0, fmt.Errorf("Can not conver %s value to float64", reflect.TypeOf(v).Elem())
 }
 
 func init() {

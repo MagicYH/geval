@@ -70,69 +70,84 @@ func (ruleNode *RuleNode) eval(node ast.Node) (reflect.Value, error) {
 			return nilValue, err
 		}
 		return nilValue, nil
-		// case *ast.ExprStmt:
-		// 	return ruleNode.evalExprStmt(n)
-		// case *ast.BinaryExpr:
-		// 	return ruleNode.evalBinaryExpr(n)
-		// case *ast.ParenExpr:
-		// 	return ruleNode.evalParenExpr(n)
-		// case *ast.BasicLit:
-		// 	return ruleNode.evalBasicLit(n)
-		// case *ast.CallExpr:
-		// 	return ruleNode.evalCallExpr(n)
-		// case *ast.Ident:
-		// 	return ruleNode.evalIdent(n)
-		// case *ast.SelectorExpr:
-		// 	return ruleNode.evalSelectorExpr(n)
-		// case *ast.IfStmt:
-		// 	return ruleNode.evalIfStmt(n)
-		// case *ast.BlockStmt:
-		// 	return ruleNode.evalBlockStmt(n)
-		// case *ast.IndexExpr:
-		// 	return ruleNode.evalIndexExpr(n)
-		// case *ast.ForStmt:
-		// 	return ruleNode.evalForStmt(n)
-		// case *ast.IncDecStmt:
-		// 	return ruleNode.evalIncDecStmt(n)
-		// case *ast.BranchStmt:
-		// 	return ruleNode.evalBranchStmt(n)
+	case *ast.ExprStmt:
+		return ruleNode.evalExprStmt(n)
+	// case *ast.BinaryExpr:
+	// 	return ruleNode.evalBinaryExpr(n)
+	// case *ast.ParenExpr:
+	// 	return ruleNode.evalParenExpr(n)
+	// case *ast.BasicLit:
+	// 	return ruleNode.evalBasicLit(n)
+	case *ast.CallExpr:
+		_, err := ruleNode.evalCallExpr(n)
+		return nilValue, err
+	// case *ast.Ident:
+	// 	return ruleNode.evalIdent(n)
+	case *ast.SelectorExpr:
+		return ruleNode.evalSelectorExpr(n)
+	case *ast.IfStmt:
+		_, err := ruleNode.evalIfStmt(n)
+		return nilValue, err
+	case *ast.BlockStmt:
+		return ruleNode.evalBlockStmt(n)
+	// case *ast.IndexExpr:
+	// 	return ruleNode.evalIndexExpr(n)
+	case *ast.ForStmt:
+		return ruleNode.evalForStmt(n)
+	case *ast.IncDecStmt:
+		return ruleNode.evalIncDecStmt(n)
+	case *ast.BranchStmt:
+		return ruleNode.evalBranchStmt(n)
 	}
 	return nilValue, fmt.Errorf("Node type not support: %s", reflect.TypeOf(node).String())
 }
 
-func (ruleNode *RuleNode) evalAssignStmt(node *ast.AssignStmt) error {
+func (ruleNode *RuleNode) evalAssignStmt(node *ast.AssignStmt) (err error) {
 	// Just support one element right side
 	if 1 != len(node.Rhs) {
 		return errors.New("Rhs's length should be one")
 	}
 
-	rValue, err := ruleNode.getData(node.Rhs[0])
-	if nil != err {
-		return err
+	switch n := node.Rhs[0].(type) {
+	case *ast.CallExpr:
+		value, err := ruleNode.evalCallExpr(n)
+		if len(value) == len(node.Lhs) {
+			for i, setNode := range node.Lhs {
+				err = ruleNode.setData(setNode, reflect.ValueOf(value[i]), node.Tok)
+				if nil != err {
+					break
+				}
+			}
+		} else {
+			err = fmt.Errorf("REsult element number is no equal")
+		}
+		// vFunc, err := ruleNode.getFunc(n)
+		// if nil != err {
+		// 	return err
+		// }
+		// if vFunc.Type().NumOut() != len(node.Lhs) {
+		// 	nameFunc, _ := ruleNode.eval(n.Fun)
+		// 	return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
+		// }
+
+		// for i, setNode := range node.Lhs {
+		// 	// get the value data, and convert to reflect.Value
+		// 	err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
+		// 	if nil != err {
+		// 		return err
+		// 	}
+		// }
+		// return nil
+
+	default:
+		value, err := ruleNode.getData(n)
+		if nil != err {
+			return err
+		}
+		err = ruleNode.setData(node.Lhs[0], reflect.ValueOf(value), node.Tok)
 	}
 
-	// switch n := node.Rhs[0].(type) {
-	// case *ast.CallExpr:
-	// 	vFunc, err := ruleNode.getFunc(n)
-	// 	if nil != err {
-	// 		return err
-	// 	}
-	// 	if vFunc.Type().NumOut() != len(node.Lhs) {
-	// 		nameFunc, _ := ruleNode.eval(n.Fun)
-	// 		return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
-	// 	}
-
-	// 	for i, setNode := range node.Lhs {
-	// 		// get the value data, and convert to reflect.Value
-	// 		err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
-	// 		if nil != err {
-	// 			return err
-	// 		}
-	// 	}
-	// 	return nil
-	// }
-
-	return ruleNode.setData(node.Lhs[0], rValue, node.Tok)
+	return
 }
 
 func (ruleNode *RuleNode) evalParenExpr(node *ast.ParenExpr) (ret reflect.Value, err error) {
@@ -140,7 +155,7 @@ func (ruleNode *RuleNode) evalParenExpr(node *ast.ParenExpr) (ret reflect.Value,
 }
 
 func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret interface{}, err error) {
-	var left, right reflect.Value
+	var left, right interface{}
 	// left, err = ruleNode.eval(node.X)
 	left, err = ruleNode.getData(node.X)
 	if nil != err {
@@ -167,7 +182,7 @@ func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret interface{},
 	case "-", "*", "/", "<", ">", "<=", ">=":
 		return doNumMath(left, right, node.Op.String())
 	}
-	return nilValue, errors.New("Operate not define")
+	return nil, errors.New("Operate not define")
 }
 
 func (ruleNode *RuleNode) evalBasicLit(node *ast.BasicLit) (ret interface{}, err error) {
@@ -192,7 +207,7 @@ func (ruleNode *RuleNode) evalExprStmt(node *ast.ExprStmt) (reflect.Value, error
 	return ruleNode.eval(node.X)
 }
 
-func (ruleNode *RuleNode) evalIfStmt(node *ast.IfStmt) (ret reflect.Value, err error) {
+func (ruleNode *RuleNode) evalIfStmt(node *ast.IfStmt) (ret interface{}, err error) {
 	// run init
 	if nil != node.Init {
 		ruleNode.eval(node.Init)
@@ -200,16 +215,15 @@ func (ruleNode *RuleNode) evalIfStmt(node *ast.IfStmt) (ret reflect.Value, err e
 	// cond, err := ruleNode.eval(node.Cond)
 	cond, err := ruleNode.getData(node.Cond)
 	if nil != err {
-		return nilValue, err
+		return nil, err
 	}
 
-	if cond.Bool() {
-		return ruleNode.eval(node.Body)
+	if cond.(bool) {
+		_, err = ruleNode.eval(node.Body)
+	} else if nil != node.Else {
+		_, err = ruleNode.eval(node.Else)
 	}
-	if nil != node.Else {
-		return ruleNode.eval(node.Else)
-	}
-	return nilValue, nil
+	return nil, err
 }
 
 func (ruleNode *RuleNode) evalBlockStmt(node *ast.BlockStmt) (ret reflect.Value, err error) {
@@ -222,7 +236,7 @@ func (ruleNode *RuleNode) evalBlockStmt(node *ast.BlockStmt) (ret reflect.Value,
 	return
 }
 
-func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret reflect.Value, err error) {
+func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret []interface{}, err error) {
 	var vFunc reflect.Value
 	vFunc, err = ruleNode.getFunc(node)
 	if nil != err {
@@ -245,21 +259,21 @@ func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret reflect.Value, e
 		realInNum++
 	}
 	if !tFunc.IsVariadic() && realInNum != numIn {
-		return nilValue, fmt.Errorf("Call udf input number not right, expect: %d, real: %d", numIn, len(node.Args))
+		return ret, fmt.Errorf("Call udf input number not right, expect: %d, real: %d", numIn, len(node.Args))
 	}
 
 	args := make([]reflect.Value, 0, realInNum)
 	if isSel {
 		selStru, err := ruleNode.getData(nodeFunc.X)
 		if nil != err {
-			return nilValue, err
+			return ret, err
 		}
-		args = append(args, selStru)
+		args = append(args, reflect.ValueOf(selStru))
 	}
 	for _, n := range node.Args {
-		param, err := ruleNode.getData(n)
+		paramInter, err := ruleNode.getData(n)
 		if nil != err {
-			return nilValue, fmt.Errorf("Get fun params error: %v", err)
+			return ret, fmt.Errorf("Get fun params error: %v", err)
 		}
 
 		var expectType reflect.Type
@@ -269,15 +283,21 @@ func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret reflect.Value, e
 		} else {
 			expectType = tLastIn
 		}
-		param, err = typeConvert(param, expectType)
+
+		paramInter = ptrElem(paramInter)
+		param, err := typeConvert(reflect.ValueOf(paramInter), expectType)
 		if nil != err {
-			return nilValue, err
+			return ret, err
 		}
 
 		args = append(args, param)
 	}
 
-	return reflect.ValueOf(vFunc.Call(args)), nil
+	for _, r := range vFunc.Call(args) {
+		ret = append(ret, r.Interface())
+	}
+	// return vFunc.Call(args), nil
+	return
 }
 
 func (ruleNode *RuleNode) evalIdent(node *ast.Ident) (ret reflect.Value, err error) {
@@ -302,10 +322,11 @@ func (ruleNode *RuleNode) evalIdent(node *ast.Ident) (ret reflect.Value, err err
 }
 
 func (ruleNode *RuleNode) evalSelectorExpr(node *ast.SelectorExpr) (vFunc reflect.Value, err error) {
-	vX, err := ruleNode.getData(node.X)
+	v, err := ruleNode.getData(node.X)
 	if nil != err {
 		return nilValue, err
 	}
+	vX := reflect.ValueOf(v)
 	tX := vX.Type()
 	method, ok := tX.MethodByName(node.Sel.Name)
 	if !ok {
@@ -335,13 +356,13 @@ func (ruleNode *RuleNode) evalForStmt(node *ast.ForStmt) (ret reflect.Value, err
 		return
 	}
 
-	var cond reflect.Value
+	var cond interface{}
 	for {
-		cond, err = ruleNode.eval(node.Cond)
+		cond, err = ruleNode.getData(node.Cond)
 		if nil != err {
 			return nilValue, err
 		}
-		if !cond.Bool() {
+		if !cond.(bool) {
 			return
 		}
 
@@ -369,20 +390,20 @@ func (ruleNode *RuleNode) evalForStmt(node *ast.ForStmt) (ret reflect.Value, err
 }
 
 func (ruleNode *RuleNode) evalIncDecStmt(node *ast.IncDecStmt) (ret reflect.Value, err error) {
-	vX, err := ruleNode.getData(node.X)
+	x, err := ruleNode.getData(node.X)
 	if nil != err {
 		return nilValue, err
 	}
 
 	switch node.Tok.String() {
 	case "++", "--":
-		ret, err = doNumMath(vX, reflect.ValueOf(0.0), node.Tok.String())
+		v, err := doNumMath(x, 0, node.Tok.String())
 		if nil != err {
-			return
+			return nilValue, err
 		}
 
-		err = ruleNode.setData(node.X, ret, token.ASSIGN)
-		return
+		err = ruleNode.setData(node.X, reflect.ValueOf(v), token.ASSIGN)
+		return nilValue, err
 	}
 	return nilValue, errors.New("Operate not define")
 }
@@ -399,7 +420,7 @@ func (ruleNode *RuleNode) evalBranchStmt(node *ast.BranchStmt) (ret reflect.Valu
 	return
 }
 
-func (ruleNode *RuleNode) evalCompositeLit(node *ast.CompositeLit) (vSlice reflect.Value, err error) {
+func (ruleNode *RuleNode) evalCompositeLit(node *ast.CompositeLit) (slice interface{}, err error) {
 	switch n := node.Type.(type) {
 	case *ast.ArrayType:
 		ident, ok := n.Elt.(*ast.Ident)
@@ -409,41 +430,60 @@ func (ruleNode *RuleNode) evalCompositeLit(node *ast.CompositeLit) (vSlice refle
 
 		typeName := ident.Name
 		length := len(node.Elts)
-		var elem reflect.Value
-		var targetType reflect.Type
 		switch typeName {
 		case "int":
-			targetType = typeInt
-			vSlice = reflect.MakeSlice(reflect.SliceOf(typeInt), 0, length)
+			s := make([]int, length, length)
+			for i, expr := range node.Elts {
+				elem, err := ruleNode.getData(expr)
+				if nil != err {
+					return nilValue, err
+				}
+				s[i] = elem.(int)
+			}
+			slice = s
+
 		case "string":
-			targetType = typeString
-			vSlice = reflect.MakeSlice(reflect.SliceOf(typeString), 0, length)
+			s := make([]string, length, length)
+			for i, expr := range node.Elts {
+				elem, err := ruleNode.getData(expr)
+				if nil != err {
+					return nilValue, err
+				}
+				s[i] = elem.(string)
+			}
+			slice = s
+
 		case "float32":
-			targetType = typeFloat32
-			vSlice = reflect.MakeSlice(reflect.SliceOf(typeFloat32), 0, length)
+			s := make([]float32, length, length)
+			for i, expr := range node.Elts {
+				elem, err := ruleNode.getData(expr)
+				if nil != err {
+					return nilValue, err
+				}
+				s[i] = float32(elem.(float64))
+			}
+			slice = s
+
 		case "float64":
-			targetType = typeFloat64
-			vSlice = reflect.MakeSlice(reflect.SliceOf(typeFloat64), 0, length)
+			s := make([]float64, length, length)
+			for i, expr := range node.Elts {
+				elem, err := ruleNode.getData(expr)
+				if nil != err {
+					return nilValue, err
+				}
+				s[i] = elem.(float64)
+			}
+			slice = s
+
 		default:
 			err = fmt.Errorf("Slice element type not support: %v", typeName)
 			return
-		}
-		for _, expr := range node.Elts {
-			elem, err = ruleNode.getData(expr)
-			if nil != err {
-				return nilValue, err
-			}
-			elem, err = typeConvert(elem, targetType)
-			if nil != err {
-				return nilValue, err
-			}
-			vSlice = reflect.Append(vSlice, elem)
 		}
 	}
 	return
 }
 
-func (ruleNode *RuleNode) evalMapType(node *ast.MapType) (param reflect.Value, err error) {
+func (ruleNode *RuleNode) evalMapType(node *ast.MapType) (param interface{}, err error) {
 	keyIdent, ok := node.Key.(*ast.Ident)
 	if !ok {
 		err = fmt.Errorf("node.Key is not *ast.Ident, realtype: %T", node.Key)
@@ -457,24 +497,23 @@ func (ruleNode *RuleNode) evalMapType(node *ast.MapType) (param reflect.Value, e
 
 	tKey, err := getTypeWithName(keyIdent.Name)
 	if nil != err {
-		return nilValue, err
+		return nil, err
 	}
 	tValue, err := getTypeWithName(valueIdent.Name)
 	if nil != err {
-		return nilValue, err
+		return nil, err
 	}
 
-	makeMapParam := makeMapParam{tKey: tKey, tValue: tValue}
-	return reflect.ValueOf(makeMapParam), nil
+	return makeMapParam{tKey: tKey, tValue: tValue}, nil
 }
 
 func (ruleNode *RuleNode) getData(node ast.Expr) (ret interface{}, err error) {
 	switch n := node.(type) {
 	case *ast.Ident:
-		return ruleNode.identGet(n)
+		ret, err = ruleNode.identGet(n)
 
 	case *ast.IndexExpr:
-		var x, index reflect.Value
+		var x, index interface{}
 		x, err = ruleNode.getData(n.X)
 		if nil != err {
 			return x, err
@@ -483,25 +522,51 @@ func (ruleNode *RuleNode) getData(node ast.Expr) (ret interface{}, err error) {
 		if nil != err {
 			return index, err
 		}
-		return getDataByIndex(x, index)
+		ret, err = getDataByIndex(x, index)
 
 	case *ast.SelectorExpr:
-		ret, err = ruleNode.getData(n.X)
-		return getDataBySel(x, n.Sel.Name)
+		var x interface{}
+		x, err = ruleNode.getData(n.X)
+		if nil != err {
+			return nil, err
+		}
+		ret, err = getDataBySel(x, n.Sel.Name)
+
 	case *ast.BasicLit:
-		return ruleNode.evalBasicLit(n)
+		ret, err = ruleNode.evalBasicLit(n)
+
 	case *ast.BinaryExpr:
-		return ruleNode.evalBinaryExpr(n)
+		ret, err = ruleNode.evalBinaryExpr(n)
+
 	case *ast.ParenExpr:
-		return ruleNode.getData(n.X)
-		// case *ast.CallExpr:
-		// 	return ruleNode.evalCallExpr(n)
-		// case *ast.CompositeLit:
-		// 	return ruleNode.evalCompositeLit(n)
-		// case *ast.MapType:
-		// 	return ruleNode.evalMapType(n)
+		ret, err = ruleNode.getData(n.X)
+
+	case *ast.CallExpr:
+		ret, err = ruleNode.evalCallExpr(n)
+		retList := ret.([]interface{})
+		if len(retList) > 0 {
+			ret = retList[0]
+		} else {
+			ret = nil
+		}
+
+	case *ast.CompositeLit:
+		return ruleNode.evalCompositeLit(n)
+	case *ast.MapType:
+		return ruleNode.evalMapType(n)
+	default:
+		err = fmt.Errorf("Unexpect get node type: %T, value: %v", node, node)
+		return
 	}
-	err = fmt.Errorf("Unexpect get node type: %T, value: %v", node, node)
+
+	// tRet := reflect.TypeOf(ret)
+	// if "*interface {}" == tRet.String() {
+	// 	tRet = tRet.Elem()
+	// 	ret = ptrElem(ret)
+	// }
+	// if reflect.Interface == tRet.Kind() {
+	// 	ret = faceToReal(ret)
+	// }
 	return
 }
 
@@ -520,30 +585,62 @@ func (ruleNode *RuleNode) identGet(node *ast.Ident) (value interface{}, err erro
 }
 
 func getDataByIndex(data interface{}, index interface{}) (ret interface{}, err error) {
-	tData := reflect2.TypeOf(data)
-	kData := tData.Type1().Kind()
+	tData := reflect.TypeOf(data)
+	kData := tData.Kind()
+
+	if kData == reflect.Ptr {
+		tData = tData.Elem()
+		kData = tData.Kind()
+		if reflect.Interface == kData {
+			data = reflect2.Type2(tData).Indirect(data)
+			data = ptrElem(data)
+			tData = reflect.TypeOf(data)
+			kData = tData.Kind()
+			data = faceToPrt(data)
+		}
+	}
+
+	if reflect.TypeOf(data).Kind() != reflect.Ptr {
+		data = faceToPrt(data)
+	}
 
 	switch kData {
 	case reflect.Map:
-		tMap := tData.(reflect2.MapType)
-		return tMap.GetIndex(&data, &index), nil
+		tMap := reflect2.Type2(tData).(reflect2.MapType)
+		kKey := reflect.TypeOf(index).Kind()
+		if reflect.Ptr == kKey {
+			key := index.(*string)
+			ret = tMap.GetIndex(data, key)
+		} else {
+			key := index.(string)
+			ret = tMap.GetIndex(data, &key)
+		}
+		ret = ptrElem(ret)
 
 	case reflect.Slice:
-		tSlice := tData.(reflect2.SliceType)
-		return tSlice.GetIndex(&data, index.(int)), nil
+		tSlice := reflect2.Type2(tData).(reflect2.SliceType)
+		ret = tSlice.GetIndex(data, index.(int))
+		ret = ptrElem(ret)
+
+	default:
+		err = fmt.Errorf("Unexpect data kind when get by index: %v", kData)
 	}
-	err = fmt.Errorf("Unexpect data kind when get by index: %v", kData)
+
 	return
 }
 
 func getDataBySel(data interface{}, field string) (ret interface{}, err error) {
 	tData := reflect2.TypeOf(data)
+	_, ok := tData.(reflect2.PtrType)
+	if ok {
+		tData = reflect2.Type2(tData.Type1().Elem())
+	}
 	tStruct := tData.(reflect2.StructType)
 	return tStruct.FieldByName(field).Get(data), nil
 }
 
-func (ruleNode *RuleNode) setData(node ast.Expr, value interface{}git , t token.Token) (err error) {
-	var elem reflect.Value
+func (ruleNode *RuleNode) setData(node ast.Expr, value reflect.Value, t token.Token) (err error) {
+	var elem interface{}
 	switch n := node.(type) {
 	case *ast.Ident:
 		err = ruleNode.identSet(n, value, t)
@@ -552,12 +649,13 @@ func (ruleNode *RuleNode) setData(node ast.Expr, value interface{}git , t token.
 		if nil != err {
 			return
 		}
-		var index reflect.Value
+		var index interface{}
 		index, err = ruleNode.getData(n.Index)
 		if nil != err {
 			return
 		}
-		err = setDataByIndex(elem, index, value)
+
+		err = setDataByIndex(reflect.ValueOf(elem), reflect.ValueOf(index), value)
 
 	case *ast.SelectorExpr:
 		elem, err = ruleNode.getData(n.X)
@@ -565,7 +663,7 @@ func (ruleNode *RuleNode) setData(node ast.Expr, value interface{}git , t token.
 			return
 		}
 
-		err = setDataBySel(elem, n.Sel.Name, value)
+		err = setDataBySel(reflect.ValueOf(elem), n.Sel.Name, value)
 
 	default:
 		err = fmt.Errorf("Unexpect set node type: %T, value: %v", node, node)
@@ -607,31 +705,29 @@ func (ruleNode *RuleNode) identSet(node *ast.Ident, value reflect.Value, t token
 }
 
 func (ruleNode *RuleNode) getFunc(node *ast.CallExpr) (vFunc reflect.Value, err error) {
-
-	switch node.Fun.(type) {
+	switch n := node.Fun.(type) {
 	case *ast.SelectorExpr:
-		return ruleNode.eval(node.Fun)
-	default:
-		var vFuncName reflect.Value
-		vFuncName, err = ruleNode.eval(node.Fun)
-		if nil != err {
-			return
-		}
-		funcName := vFuncName.String()
-		udf, ok := ruleNode.funcCtx.data[funcName]
-		if !ok {
-			return nilValue, fmt.Errorf("Call udf fail, udf not found: %s", funcName)
+		vFunc, err = ruleNode.eval(n)
+
+	case *ast.Ident:
+		funName := n.Name
+		udf, ok := ruleNode.funcCtx.data[funName]
+		if ok {
+			vFunc = reflect.ValueOf(udf)
+		} else {
+			err = fmt.Errorf("Call udf fail, udf not found: %s", funName)
 		}
 
-		vFunc = reflect.ValueOf(udf)
+	default:
+		err = fmt.Errorf("get Func node type not support")
 	}
 
-	return vFunc, nil
+	return
 }
 
 func setDataByIndex(vData reflect.Value, vIndex reflect.Value, vValue reflect.Value) (err error) {
 	kData := vData.Kind()
-	if reflect.Ptr == kData || reflect.Interface == kData {
+	for reflect.Ptr == kData || reflect.Interface == kData {
 		vData = vData.Elem()
 		kData = vData.Kind()
 	}
@@ -651,7 +747,7 @@ func setDataByIndex(vData reflect.Value, vIndex reflect.Value, vValue reflect.Va
 
 func setDataBySel(vData reflect.Value, field string, vValue reflect.Value) (err error) {
 	kData := vData.Kind()
-	if reflect.Ptr == kData || reflect.Interface == kData {
+	for reflect.Ptr == kData || reflect.Interface == kData {
 		vData = vData.Elem()
 		kData = vData.Kind()
 	}
@@ -692,10 +788,22 @@ func getInterfaceRealType(vValue reflect.Value) reflect.Type {
 
 func typeConvert(vValue reflect.Value, targetType reflect.Type) (reflect.Value, error) {
 	tValue := vValue.Type()
-	if targetType != tValue && !tValue.ConvertibleTo(targetType) {
+	if targetType == tValue {
+		return vValue, nil
+	}
+
+	if reflect.Ptr == tValue.Kind() && reflect.Ptr != targetType.Kind() {
+		if targetType.Kind() != reflect.Interface && !tValue.Elem().ConvertibleTo(targetType) {
+			return vValue, fmt.Errorf("Can not set value, variable type do not match, targetType: %v, sourceType: %v, sourceValue: %v", targetType, tValue.Elem(), vValue)
+		}
+		vValue = vValue.Elem()
+		tValue = vValue.Type()
+	}
+
+	if !tValue.ConvertibleTo(targetType) {
 		return vValue, fmt.Errorf("Can not set value, variable type do not match, targetType: %s, sourceType: %s", targetType, tValue)
 	}
-	if targetType.Kind() != reflect.Interface && targetType != tValue {
+	if targetType.Kind() != reflect.Interface {
 		vValue = vValue.Convert(targetType)
 	}
 	return vValue, nil

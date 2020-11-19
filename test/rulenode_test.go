@@ -54,7 +54,6 @@ func TestAssignRule(t *testing.T) {
 	stru.Pro.Name = "student"
 	stru.Pro.Salary = 10
 	stru.Pro.Position.Name = "PM"
-
 	`
 	dataCtx := geval.NewDataCtx()
 	dataCtx.Bind("dict", &dict)
@@ -413,6 +412,40 @@ func TestMap(t *testing.T) {
 	if ii[10] != 10 {
 		t.Error("ii result error")
 		return
+	}
+}
+
+func TestRealEval(t *testing.T) {
+	data := make(map[string]interface{})
+	data["aspect"] = 1.77
+	data["cep"] = []int{0, 495}
+	content := `
+	data["bev"] = 0
+	if data["aspect"] < 1 {
+		data["bev"] = 1
+	} else {
+		cep := data["cep"]
+		if ((cep[1] - cep[0]) / 495) <= 0.85 {
+			data["bev"] = 1
+		} else {
+			data["bev"] = 0
+		}
+	}
+	`
+
+	dataCtx := geval.NewDataCtx()
+	dataCtx.Bind("data", &data)
+
+	node, err := geval.NewRuleNode(content, nil)
+	if nil != err {
+		t.Error("New rule error: ", err)
+		return
+	}
+	node.Eval(dataCtx)
+	t.Log(data)
+
+	if data["bev"] != 0 {
+		t.Error("Result error")
 	}
 }
 
