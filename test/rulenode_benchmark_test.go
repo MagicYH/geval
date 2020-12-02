@@ -72,6 +72,26 @@ func BenchmarkMakeSliceEval(b *testing.B) {
 	}
 }
 
+func BenchmarkMakeMap(b *testing.B) {
+	var a map[string]string
+	rule := `
+	a = make(map[string]string)
+	`
+
+	dataCtx := geval.NewDataCtx()
+	dataCtx.Bind("a", &a)
+
+	funCtx := geval.NewFunCtx()
+	node, err := geval.NewRuleNode(rule, funCtx)
+	if nil != err {
+		b.Error("New rule error: ", err)
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		node.Eval(dataCtx)
+	}
+}
+
 func BenchmarkRealEval(b *testing.B) {
 	data := make(map[string]interface{})
 	data["aspect"] = 0.77

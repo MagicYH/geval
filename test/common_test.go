@@ -181,6 +181,10 @@ func TestEfaceMap(t *testing.T) {
 	v33 := ptrElem(v3)
 
 	t.Logf("type, m1: %T, v1: %T, m2: %T, v2: %T, m3: %T, v3: %T, v11: %T, v22: %T, v33: %T", m1["s"], v1, m2["s"], v2, m3["s"], v3, v11, v22, v33)
+
+	type2Map := reflect2.TypeOf(m1).(reflect2.MapType)
+	newMap := type2Map.MakeMap(0)
+	t.Logf("new map: %T, *newMap: %T", newMap, ptrElem(newMap))
 }
 
 func unpackEface(obj interface{}) *eface {
