@@ -16,7 +16,7 @@ import (
 )
 
 func main(){
-    a := 0
+	a := 0
 	rule := `
 	a = 1
 	`
@@ -33,12 +33,12 @@ func main(){
 	if nil != err {
 		fmt.Println("Eval error: ", err)
 		return
-    }
-    fmt.Println(a)
+	}
+	fmt.Println(a)
 }
 ```
 
-look [test](https://github.com/MagicYH/geval/test) for more example
+look [test](https://github.com/MagicYH/geval/tree/master/test) for more example
 
 ## Features
 
@@ -91,7 +91,7 @@ func main(){
 		return
 	}
 
-    node.Eval(dataCtx)
-    fmt.Println(d)
+	node.Eval(dataCtx)
+	fmt.Println(d)
 }
 ```

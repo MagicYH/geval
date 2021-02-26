@@ -151,7 +151,7 @@ func TestIf(t *testing.T) {
 	// b = 0
 	// c = 0
 
-	if one == 1 {
+	if one == 1 && (one == 1 || one == 2) {
 		a = 1
 	} else {
 		a = 0
@@ -182,6 +182,8 @@ func TestIf(t *testing.T) {
 		return
 	}
 
+	node.DumpAstTree()
+	return
 	err = node.Eval(dataCtx)
 	if nil != err {
 		t.Error("Eval error: ", err)

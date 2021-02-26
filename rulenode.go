@@ -72,17 +72,9 @@ func (ruleNode *RuleNode) eval(node ast.Node) (reflect.Value, error) {
 		return nilValue, nil
 	case *ast.ExprStmt:
 		return ruleNode.evalExprStmt(n)
-	// case *ast.BinaryExpr:
-	// 	return ruleNode.evalBinaryExpr(n)
-	// case *ast.ParenExpr:
-	// 	return ruleNode.evalParenExpr(n)
-	// case *ast.BasicLit:
-	// 	return ruleNode.evalBasicLit(n)
 	case *ast.CallExpr:
 		_, err := ruleNode.evalCallExpr(n)
 		return nilValue, err
-	// case *ast.Ident:
-	// 	return ruleNode.evalIdent(n)
 	case *ast.SelectorExpr:
 		return ruleNode.evalSelectorExpr(n)
 	case *ast.IfStmt:
@@ -90,8 +82,6 @@ func (ruleNode *RuleNode) eval(node ast.Node) (reflect.Value, error) {
 		return nilValue, err
 	case *ast.BlockStmt:
 		return ruleNode.evalBlockStmt(n)
-	// case *ast.IndexExpr:
-	// 	return ruleNode.evalIndexExpr(n)
 	case *ast.ForStmt:
 		return ruleNode.evalForStmt(n)
 	case *ast.IncDecStmt:
@@ -121,23 +111,6 @@ func (ruleNode *RuleNode) evalAssignStmt(node *ast.AssignStmt) (err error) {
 		} else {
 			err = fmt.Errorf("REsult element number is no equal")
 		}
-		// vFunc, err := ruleNode.getFunc(n)
-		// if nil != err {
-		// 	return err
-		// }
-		// if vFunc.Type().NumOut() != len(node.Lhs) {
-		// 	nameFunc, _ := ruleNode.eval(n.Fun)
-		// 	return fmt.Errorf("Result element number is not equal with function `%s` result count, expect: %d, real: %d", nameFunc.String(), len(node.Lhs), vFunc.Type().NumOut())
-		// }
-
-		// for i, setNode := range node.Lhs {
-		// 	// get the value data, and convert to reflect.Value
-		// 	err := ruleNode.setData(setNode, getInterfaceRealValue(rValue.Index(i).Interface().(reflect.Value)), node.Tok)
-		// 	if nil != err {
-		// 		return err
-		// 	}
-		// }
-		// return nil
 
 	default:
 		value, err := ruleNode.getData(n)
@@ -156,21 +129,15 @@ func (ruleNode *RuleNode) evalParenExpr(node *ast.ParenExpr) (ret reflect.Value,
 
 func (ruleNode *RuleNode) evalBinaryExpr(node *ast.BinaryExpr) (ret interface{}, err error) {
 	var left, right interface{}
-	// left, err = ruleNode.eval(node.X)
 	left, err = ruleNode.getData(node.X)
 	if nil != err {
 		return
 	}
-	// If node.X is callExpr, than get the first result
-	// left = getNodeFirstResult(node.X, left)
 
-	// right, err = ruleNode.eval(node.Y)
 	right, err = ruleNode.getData(node.Y)
 	if nil != err {
 		return
 	}
-	// If node.Y is callExpr, than get the first result
-	// right = getNodeFirstResult(node.Y, right)
 
 	switch node.Op.String() {
 	case "+":
@@ -212,7 +179,7 @@ func (ruleNode *RuleNode) evalIfStmt(node *ast.IfStmt) (ret interface{}, err err
 	if nil != node.Init {
 		ruleNode.eval(node.Init)
 	}
-	// cond, err := ruleNode.eval(node.Cond)
+
 	cond, err := ruleNode.getData(node.Cond)
 	if nil != err {
 		return nil, err
@@ -301,23 +268,6 @@ func (ruleNode *RuleNode) evalCallExpr(node *ast.CallExpr) (ret []interface{}, e
 }
 
 func (ruleNode *RuleNode) evalIdent(node *ast.Ident) (ret reflect.Value, err error) {
-	// var err error
-	// identity := Identity{}
-	// identity.Name = node.Name
-	// switch node.Name {
-	// case "true":
-	// 	identity.Value = true
-	// 	identity.Kind = identKindInbuild
-	// case "false":
-	// 	identity.Value = false
-	// 	identity.Kind = identKindInbuild
-	// case "nil":
-	// 	identity.Value = nil
-	// 	identity.Kind = identKindInbuild
-	// default:
-	// 	identity.Kind = identKindVar
-	// }
-	// return identity, err
 	return reflect.ValueOf(node.Name), nil
 }
 
@@ -559,14 +509,6 @@ func (ruleNode *RuleNode) getData(node ast.Expr) (ret interface{}, err error) {
 		return
 	}
 
-	// tRet := reflect.TypeOf(ret)
-	// if "*interface {}" == tRet.String() {
-	// 	tRet = tRet.Elem()
-	// 	ret = ptrElem(ret)
-	// }
-	// if reflect.Interface == tRet.Kind() {
-	// 	ret = faceToReal(ret)
-	// }
 	return
 }
 
@@ -681,25 +623,6 @@ func (ruleNode *RuleNode) identSet(node *ast.Ident, value reflect.Value, t token
 		err = fmt.Errorf("Can not set to nil")
 	default:
 		err = ruleNode.dataCtx.Set(node.Name, value)
-		// ret, err := ruleNode.dataCtx.Get(node.Name)
-		// switch t {
-		// case token.DEFINE:
-		// 	if nil != ret {
-		// 		err = fmt.Errorf("Elem has exsits before, should not be define again, name: %s", node.Name)
-		// 	} else {
-		// 		err = ruleNode.dataCtx.Set(node.Name, convToRealType(value))
-		// 	}
-
-		// case token.ASSIGN:
-		// 	if nil != err {
-		// 		err = fmt.Errorf("Elem has not been define, define first, name: %s", node.Name)
-		// 	} else {
-		// 		err = ruleNode.dataCtx.Set(node.Name, convToRealType(value))
-		// 	}
-
-		// default:
-		// 	err = fmt.Errorf("Assign token not found: %v", t)
-		// }
 	}
 	return
 }

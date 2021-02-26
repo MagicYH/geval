@@ -37,17 +37,6 @@ func getValueAndKind(input interface{}) (reflect.Value, reflect.Kind) {
 	return v, v.Kind()
 }
 
-// func addString(vA, vB reflect.Value) (reflect.Value, error) {
-// 	kA := vA.Kind()
-// 	kB := vB.Kind()
-// 	if kA == reflect.String && kB != reflect.String {
-// 		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
-// 	} else if kA != reflect.String && kB == reflect.String {
-// 		return nilValue, fmt.Errorf("ADD(+) can't be used between %s and %s", kA, kB)
-// 	}
-// 	return reflect.ValueOf(fmt.Sprintf("%s%s", vA.String(), vB.String())), nil
-// }
-
 func doNumMath(a, b interface{}, op string) (interface{}, error) {
 	afloat, err := interToFloat(a)
 	if nil != err {

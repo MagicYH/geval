@@ -224,34 +224,6 @@ func setSliceValue(elem reflect.Value, vIndex reflect.Value, vValue reflect.Valu
 	return
 }
 
-// func setSliceValue(elem reflect.Value, fieldName string, value interface{}) (ret reflect.Value, err error) {
-// 	var index int
-// 	index, err = strconv.Atoi(fieldName)
-// 	if nil != err {
-// 		return
-// 	}
-
-// 	// Out of range check
-// 	if index >= elem.Len() {
-// 		err = errors.New("Index out of range")
-// 		return
-// 	}
-
-// 	tmpElem := elem.Index(index)
-// 	if tmpElem.IsValid() {
-// 		if nil == value {
-// 			ret = tmpElem
-// 			return
-// 		}
-
-// 		updateElem(tmpElem, reflect.ValueOf(value))
-// 		return
-// 	}
-
-// 	err = errors.New("Do not increase slice")
-// 	return
-// }
-
 func canBeInt(value string) bool {
 	_, err := strconv.Atoi(value)
 	if nil != err {
@@ -268,11 +240,6 @@ func updateElem(elem reflect.Value, value reflect.Value) error {
 		if nil != err {
 			return err
 		}
-		// typeElem := elem.Type()
-		// typeValue := value.Type()
-		// if !typeValue.ConvertibleTo(typeElem) {
-		// 	return fmt.Errorf("Assign type not math and can not be convert, targetType: %s, sourceType: %s", typeElem, typeValue)
-		// }
 		elem.Set(vValue)
 	}
 	return nil
